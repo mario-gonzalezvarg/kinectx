@@ -8,17 +8,17 @@
 extern "C" {
 #endif
 
-/*library-wide context for ONE single USB connection*/
+/* Library-wide context for ONE single USB handler connection */
 typedef struct kn_usb kn_usb;
 typedef struct kn_h kn_h;
 
-/*device identifer*/
+/* Device identifer */
 typedef struct {
 	uint16_t vid, pid;
 	uint8_t bus, addr;
 } kn_id;
 
-/*error code notifier*/
+/* Model code notifier */
 enum {
 	KN_OK = 0,
 	KN_EINVAL = -1,
@@ -32,8 +32,45 @@ enum {
 
 const char *kn_error(int code);
 
-/*--------- Exposed Operations --------*/
+/*--------------------------------------------- Exposed Operations ----------------------------------------*/
 
-/*create or destroy USB communcation*/
+// Context lifecycle
 int kn_usb_new(kn_usb **out);
 void kn_usb_del(kn_usb *u);
+
+// Enumeration of devices (optional filters: pass zero to ignore filters)
+int kn_usb_scan(kn_usb *u, uint16_t vid, uint8_t pid, kn_id **out, size_t *out);
+void kn_usb_ids_del(kn_ids *ids);
+
+// Open/close
+int kn_usb_open(kn_usb *u, kn_id *id, kn_h **out);
+void kn_usb_close(kn_usb *u);
+
+// Interface managment
+int kn_usb_claim(kn_h *h, int iFace, int detach_kernel);
+int kn_usb_release(kn_h *h, int iFace);
+int kn_usb_alt(kn_h *h, int iFace, int alt);
+
+// USB control transfer (small command packets, motors/LED live here)
+int kn_usb_ctl(kn_h *h, uint8_t bmReq, uint8_t bReq,
+		uint16_t wVal, uint16_t wIdx, 
+		void *data, uint16_t len,
+		unsigned timeout_ms);
+
+// USB bulk transfer for larger reliable transfers (i.e. firmware/audio paths use this)
+int kn_usb_bulk(kn_h *h, uint8_t ep, void *data, int len, unsigned timeout_ms);
+
+// Event pump for isoch streams
+int kn_usb_step(kn_usb *u, int timeout_ms);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+#endif
+
+
+
+
+
+
+
