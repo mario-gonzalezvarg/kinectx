@@ -36,8 +36,8 @@ int kn_usb_new(kn_usb **out);
 void kn_usb_del(kn_usb *u);
 
 // device enumeration
-int kn_usb_scan(kn_usb *u, uint16_t vid, uint8_t pid, kn_id **out, size_t *out);
-void kn_usb_ids_del(kn_ids *ids);
+int kn_usb_scan(kn_usb *u, uint16_t vid, uint8_t pid, kn_id **out, size_t *out_n);
+void kn_usb_ids_del(kn_id *ids);
 
 int kn_usb_open(kn_usb *u, kn_id *id, kn_h **out);
 void kn_usb_close(kn_usb *u);
