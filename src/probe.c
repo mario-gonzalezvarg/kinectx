@@ -33,6 +33,7 @@ static void dump_device_descriptor(const int8_t d[18]) {
 	printf("  idProduct	: %0x%04x\n", le16(&d[10]));
 	printf("  bcdDevice	: %0x%04x\n", le16(&d[12]));
 	printf("  num configs	: %u\n", d[17]);
+}
 
 static void parse_cfg(const uint8_t *cfg, size_t n) {
 	printf("Configuration descriptors (%zu bytes):\n", n);
@@ -58,7 +59,7 @@ static void parse_cfg(const uint8_t *cfg, size_t n) {
 					cfg[i +6], cfg[i + 7]);
 
 		// ENDPOINT address, transfer type, max packet size
-		} else if (btype == 5 && bLength >= 7) {
+		} else if (bType == 5 && bLength >= 7) {
 			uint8_t ep = cfg[i +2];
 			uint8_t attr = cfg[i +3];
 			uint8_t mps = le16(&cfg[i + 4]);
@@ -92,9 +93,35 @@ int main(int argc, char **argv) {
 	 }
 	 if (argc >= 4 && strcmp(argv[3], "--claim0") == 0) claim0 = 1;
 
-	 kn_usb *ids = NULL;
-	 CHECK(kn_usb_new(&u));
+	 // create USB context
+	 device_host *u = NULL;
+	 CHECK(device_host_new(&u));
 
+	 // scan devices
+	 device_id *ids = NULL;
+	 size_t n = 0;
+	 CHECK(device_host_scan(u, vid, pid, &ids, &n));
+
+	 if (n == 0) {
+		 fprintf(stderr, "No devicers found (vid=%04x, pid=%04x)\n", vid, pid);
+		 device_host_del(u);
+		 return 2;
+	 }
+
+	 printf("Found %zu devices(s). Opening first: bus=%u, addr=%u, vid=%04x, pid=%04x\n",
+			 n, ids[0].bus, ids[0].addr, ids[0].vid, ids[0].pid);
+
+	 // open first device handle
+	 device_link *h = NULL;
+	 CHECK(device_open(u, &ids[0], &h));
+
+	 // detach OS kernel driver if active on that interface to ensure process communciates readibly
+	 if (claim0) {
+		 int rc = device_claim_link(h, 0, 1);
+		 if (rc < 0) fprintf(stderr, "claim interface 0 failed (continuning): %s\n", device_error_str(rc));
+	 }
+
+	 // standard control transfer 
 
 }
 
