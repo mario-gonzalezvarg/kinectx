@@ -34,9 +34,20 @@ const char *device_err_str(int code);
 
 /* host session lifecycle */
 int device_host_create(device_host **out);
-void device_host_create(device_host *host);
+void device_host_destroy(device_host *host);
 
-/* enumeration */
+/* enumerate devices connected to USB */
+int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_ids **out_ids, size_t *out_n);
+void device_ids_destroy(device_ids *ids);
+
+/* open/close link handle */
+int device_link_open(device_host *host, const device_id *id, device_lin **out_link);
+void device_link_close(device_link *link);
+
+/* interface management */
+int device_link_claim(device_link *link, int iface, int detach_kernel);
+int device_link_release(device_link *link, int iface);
+int device_link_set_alt(device_link *link, int iface, int alt);
 
 
 
