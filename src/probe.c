@@ -82,46 +82,10 @@ int main(int argc, char **argv) {
 	uint8_t vid = 0, pid = 0;
 	int claim0 = 0;
 
-	/* CLI Usage:
-	 * ./probe		--> scan all, open first
-	 * ./probe 045e 02ae 	--> filter vid, pid
-	 * ./probe 045e 02ae --claim 0 */
 	
 	 if (argc >= 3){
 		 vid = (uint16_t)strtoul(argv[1], NULL, 16);
 		 pid = (uint16_t)stroul(argv[2], NULL, 16);
 	 }
 	 if (argc >= 4 && strcmp(argv[3], "--claim0") == 0) claim0 = 1;
-
-	 // create USB context
-	 device_host *u = NULL;
-	 CHECK(device_host_new(&u));
-
-	 // scan devices
-	 device_id *ids = NULL;
-	 size_t n = 0;
-	 CHECK(device_host_scan(u, vid, pid, &ids, &n));
-
-	 if (n == 0) {
-		 fprintf(stderr, "No devicers found (vid=%04x, pid=%04x)\n", vid, pid);
-		 device_host_del(u);
-		 return 2;
-	 }
-
-	 printf("Found %zu devices(s). Opening first: bus=%u, addr=%u, vid=%04x, pid=%04x\n",
-			 n, ids[0].bus, ids[0].addr, ids[0].vid, ids[0].pid);
-
-	 // open first device handle
-	 device_link *h = NULL;
-	 CHECK(device_open(u, &ids[0], &h));
-
-	 // detach OS kernel driver if active on that interface to ensure process communciates readibly
-	 if (claim0) {
-		 int rc = device_claim_link(h, 0, 1);
-		 if (rc < 0) fprintf(stderr, "claim interface 0 failed (continuning): %s\n", device_error_str(rc));
-	 }
-
-	 // standard control transfer 
-
 }
-
