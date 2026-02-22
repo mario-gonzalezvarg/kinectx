@@ -118,6 +118,38 @@ int main(int argc, char **argv) {
 		if (rc < 0) fprintf(stderr, "default interface failed (contiuning): %s\n", device_err_str(rc));
 	 }
 
+	 // configuration desciptor
+	 uint8_t devd[18] = {0};
+	 int got = device_link_ctrl(link, 0x80, 0x06, (1u << 8), 0, devd, 1000);
+	 if (got < 0) die("GET_CONFIGURATION(device)", got);
+	 if (got != 18) fprintf(stderr, "Warning: device descriptor length=%d\n", got);
+	 dump_device_descriptor(devd);
 
+	// configuration descriptor lives in the first 9 bytes of the header with an offset of 2
+	uint8_t cfg9[9] = {0};
+	got = device_link_ctrl(link, 0x80, (2u << 8), 0, cfg9, sizeof(cfg9), 1000);
+	if (got < 0) die("GET_CONFIGURATION(config, 9)", got);
+	if (got < 9) fprintf(stderr, "Warning: conifguration header short=%d\n", got);
 
+	uint16_t total = le(&cfg9[9]);
+	if (total < 9 || total > 4096) {
+		fprintf(stderr, "Suspicious config total length=%u\n", total);
+		total = 9;
+	}
+	
+	// store header bytes
+	uint8_t *cfg = (uint8_t *)calloc(1, total);
+	if (!cfg) die("calloc(cfg)", DEVICE_ENOMEM);
+	
+	// read rest of descriptors
+	got = device_link_ctrl(link, 0x80, (2u << 8), 0, cfg, total, 1000);
+	if (got < 0) die("GET_DESCRIPTOR(config, total)", got);
+
+	// store rest
+	parse_cfg(cfg, (size_t)got);
+	free(cfg);
+
+	device_link_close(link);
+	device_ids_destroy(ids);
+	device_host_destroy(host);
 }
