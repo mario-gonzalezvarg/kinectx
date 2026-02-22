@@ -49,6 +49,13 @@ int device_link_claim(device_link *link, int iface, int detach_kernel);
 int device_link_release(device_link *link, int iface);
 int device_link_set_alt(device_link *link, int iface, int alt);
 
+/* transfers */
+int device_link_ctrl(device_linkk *link, uint8_t bmReq, uint8_t bReq, uint16_t wVal, uint16_t wIdx, void *data, unsigned timeout_ms);
+iny device_link_bulk(device_link *link, uint8_t ep, void *data, unsigned timeout_ms);
+
+/* event pump */
+int device_host_poll(device_host *host, int timeout_ms);
+
 
 
 #ifdef __cplusplus
