@@ -80,12 +80,44 @@ static void parse_cfg(const uint8_t *cfg, size_t n) {
 
 int main(int argc, char **argv) {
 	uint8_t vid = 0, pid = 0;
-	int claim0 = 0;
+	int default_claim = 0;
 
 	
 	 if (argc >= 3){
 		 vid = (uint16_t)strtoul(argv[1], NULL, 16);
 		 pid = (uint16_t)stroul(argv[2], NULL, 16);
 	 }
-	 if (argc >= 4 && strcmp(argv[3], "--claim0") == 0) claim0 = 1;
+	 if (argc >= 4 && strcmp(argv[3], "--claim0") == 0) default_claim = 1;
+
+	 // create device
+	 device_host *host = NULL;
+	 CHECK(device_host_create(&host));
+
+	 // scan for devices
+	 device_id *ids = NULL;
+	 size_t n = 0;
+	 CHECK(device_host_scan(host, vid, pid, &ids, &n));
+
+	 // free handler from memory if no devices were found and terminate program
+	 if (n == 0) {
+		fprint("No devices found (vid=%04x pid=%04x)", vid, pid);
+		device_host_destroy(host);
+		return 2;
+	 }
+
+	 // enumerate devices
+	 printf("Found %zu device(s). Opening first: bus=%u \t address=%u \t vid=%04x pid=%04x", n, ids[0].bus, ids[0].addr, ids[0].vid, ids[0].pid);
+
+	 // initilaize libusb session
+	 device_link *link = NULL;
+	 CHECK(device_link_open(host, &ids[0], &link));
+
+	 // discard exisiting OS driver to claim control
+	 if (default_claim) {
+		int rc = device_link_claim(link, 0, 1);
+		if (rc < 0) fprintf(stderr, "default interface failed (contiuning): %s\n", device_err_str(rc));
+	 }
+
+
+
 }
