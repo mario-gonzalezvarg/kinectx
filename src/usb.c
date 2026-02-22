@@ -47,3 +47,41 @@ const char *device_err_str(int code) {
     default:             return "unknown error";
   }
 }
+
+int device_host_create(device_host **out) {
+  if (!out) return DEVICE_EINVAL;
+
+  device_host *host = (device_host *)calloc(1, size_of(*host));
+  if (!host) return DEVICE_ENOMEM;
+
+  int rc = libusb_init(&host->usb);
+  if (rc < 0) {free(host); return map_libusb(rc);}
+
+  *out = host;
+  return DEVICE_OK;
+}
+
+void device_host_destroy(device_host *host) {
+  if (!host) return;
+  if (host->usb) libusb_exit(host->usb);
+  free(host);
+}
+
+int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_id **out_ids, size_t *out_n) {
+  if (!host || !out_ids || !out_n) return DEVICE_EINVAL;
+
+  libusb_device **list = NULL;
+  ssize_t ndev = libusb_get_device_list(host->usb, &list);
+  if (ndev < 0) return map_libusb((int) ndev);
+
+  // allocate memory for list of scanned devices
+  size_t cap = 32, n = 0;
+  device_id *ids = (device_id *)calloc(1, sizeof(*ids));
+  if (!ids) {
+    libusb_free_device_list(list, 1);
+    return DEVICE_ENOMEM;
+  }
+  
+
+
+}

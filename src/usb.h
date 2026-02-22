@@ -1,7 +1,10 @@
 // usb.h - USB device host interface
 
 #ifndef USB.H
-#define USB.H
+#define USB.H 
+
+#include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -24,15 +24,15 @@ static uint16_t le16(const uint8_t *p) {
 }
 
 // list out 18-byte USB device descriptors
-static void dump_device_descriptor(const int8_t d[18]) {
-	printf("Device Descriptor:\n");
-	printf("  bdUSB		: %x.%02x\n", d[2], d[3]);
-	printf("  class/sub/pro : %u%u%u\n", d[4], d[5]);
-	printf("  max packets	: %u\n", d[6]);
-	printf("  idVendor	: %0x%04x\n", le16(&d[8]));
-	printf("  idProduct	: %0x%04x\n", le16(&d[10]));
-	printf("  bcdDevice	: %0x%04x\n", le16(&d[12]));
-	printf("  num configs	: %u\n", d[17]);
+static void dump_dev_desc(const uint8_t d[18]) {
+  printf("Device Descriptor:\n");
+  printf("  bcdUSB       : %x.%02x\n", d[3], d[2]);
+  printf("  class/sub/pro: %u/%u/%u\n", d[4], d[5], d[6]);
+  printf("  maxpkt0      : %u\n", d[7]);
+  printf("  idVendor     : 0x%04x\n", le16(&d[8]));
+  printf("  idProduct    : 0x%04x\n", le16(&d[10]));
+  printf("  bcdDevice    : 0x%04x\n", le16(&d[12]));
+  printf("  num configs  : %u\n", d[17]);
 }
 
 static void parse_cfg(const uint8_t *cfg, size_t n) {
