@@ -36,7 +36,9 @@ static void dump_dev_desc(const uint8_t d[18]) {
   printf("  num configs  : %u\n", d[17]);
 }
 
-static void parse_cfg(const uint8_t *cfg, size_t n) {
+static void parse_cfg(const uint8_t *cfg, const size_t n) {
+
+	if (!cfg) return;
 	printf("Configuration descriptors (%zu bytes)\n", n);
 
 	size_t i = 0;
@@ -113,24 +115,24 @@ int main(int argc, char **argv) {
 
 	 // discard existing OS driver to claim control
 	 if (default_claim) {
-		int rc = device_link_claim(link, 0, 1);
+		const int rc = device_link_claim(link, 0, 1);
 		if (rc < 0) fprintf(stderr, "default interface failed (continuing): %s\n", device_err_str(rc));
 	 }
 
-	 // configuration desciptor
+	 // configuration descriptor
 	 uint8_t devd[18] = {0};
-	 int got = device_link_ctrl(link, 0x80, 0x06, (1u << 8), 0, devd, 1000);
+	 int got = device_link_ctrl(link, 0x80, 0x06, (1u << 8), 0, devd, sizeof(devd), 1000);
 	 if (got < 0) die("GET_CONFIGURATION(device)", got);
 	 if (got != 18) fprintf(stderr, "Warning: device descriptor length=%d\n", got);
 	 dump_dev_desc(devd);
 
 	// configuration descriptor lives in the first 9 bytes of the header with an offset of 2
 	uint8_t cfg9[9] = {0};
-	got = device_link_ctrl(link, 0x80, (2u << 8), 0, cfg9, sizeof(cfg9), 1000);
+	got = device_link_ctrl(link, 0x80, 0x06, (2u << 8), 0, cfg9, sizeof(cfg9), 1000);
 	if (got < 0) die("GET_CONFIGURATION(config, 9)", got);
 	if (got < 9) fprintf(stderr, "Warning: configuration header short=%d\n", got);
 
-	uint16_t total = le(&cfg9[9]);
+	uint16_t total = le16(&cfg9[2]);
 	if (total < 9 || total > 4096) {
 		fprintf(stderr, "Suspicious config total length=%u\n", total);
 		total = 9;
@@ -141,7 +143,7 @@ int main(int argc, char **argv) {
 	if (!cfg) die("calloc(cfg)", DEVICE_ENOMEM);
 
 	// read rest of descriptors
-	got = device_link_ctrl(link, 0x80, (2u << 8), 0, cfg, total, 1000);
+	got = device_link_ctrl(link, 0x80, 0x60, (2u << 8), 0, cfg, total, 1000);
 	if (got < 0) die("GET_DESCRIPTOR(config, total)", got);
 
 	// store rest

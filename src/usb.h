@@ -1,8 +1,8 @@
 // usb.h - USB device host interface
 #pragma once
 
-#ifndef USB.H
-#define USB .H
+#ifndef USB_H
+#define USB_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -55,10 +55,13 @@ int device_link_claim(device_link *link, int iface, int detach_kernel);
 int device_link_release(device_link *link, int iface);
 int device_link_set_alt(device_link *link, int iface, int alt);
 
-/* transfers */
-int device_link_ctrl(device_link *link, uint8_t bmReq, uint8_t bReq,
-                     uint16_t wVal, uint16_t wIdx, void *data,
+/* transfers: return >=0 bytes transferred; <0 is DEVICE_* error */
+int device_link_ctrl(device_link *link,
+                     uint8_t bmReq, uint8_t bReq,
+                     uint16_t wVal, uint16_t wIdx,
+                     void *data, uint16_t len,
                      unsigned timeout_ms);
+
 
 int device_link_bulk(device_link *link, uint8_t ep, void *data,
                      unsigned timeout_ms);
