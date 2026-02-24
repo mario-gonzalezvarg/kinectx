@@ -100,57 +100,57 @@ int main(int argc, char **argv) {
 	 CHECK(device_host_scan(host, vid, pid, &ids, &n));
 
 	 // free handler from memory if no devices were found and terminate program
-	 if (n == 0) {
-		printf("No devices found (vid=%04x pid=%04x)", vid, pid);
-		device_host_destroy(host);
-		return 2;
-	 }
-
-	 // enumerate devices
-	 printf("Found %zu device(s). Opening first: bus=%u \t address=%u \t vid=%04x pid=%04x", n, ids[0].bus, ids[0].addr, ids[0].vid, ids[0].pid);
-
-	 // initialize libusb session
-	 device_link *link = NULL;
-	 CHECK(device_link_open(host, &ids[0], &link));
-
-	 // discard existing OS driver to claim control
-	 if (default_claim) {
-		const int rc = device_link_claim(link, 0, 1);
-		if (rc < 0) fprintf(stderr, "default interface failed (continuing): %s\n", device_err_str(rc));
-	 }
-
-	 // configuration descriptor
-	 uint8_t devd[18] = {0};
-	 int got = device_link_ctrl(link, 0x80, 0x06, (1u << 8), 0, devd, sizeof(devd), 1000);
-	 if (got < 0) die("GET_CONFIGURATION(device)", got);
-	 if (got != 18) fprintf(stderr, "Warning: device descriptor length=%d\n", got);
-	 dump_dev_desc(devd);
-
-	// configuration descriptor lives in the first 9 bytes of the header with an offset of 2
-	uint8_t cfg9[9] = {0};
-	got = device_link_ctrl(link, 0x80, 0x06, (2u << 8), 0, cfg9, sizeof(cfg9), 1000);
-	if (got < 0) die("GET_CONFIGURATION(config, 9)", got);
-	if (got < 9) fprintf(stderr, "Warning: configuration header short=%d\n", got);
-
-	uint16_t total = le16(&cfg9[2]);
-	if (total < 9 || total > 4096) {
-		fprintf(stderr, "Suspicious config total length=%u\n", total);
-		total = 9;
-	}
-
-	// store header bytes
-	uint8_t *cfg = (uint8_t *)calloc(1, total);
-	if (!cfg) die("calloc(cfg)", DEVICE_ENOMEM);
-
-	// read rest of descriptors
-	got = device_link_ctrl(link, 0x80, 0x60, (2u << 8), 0, cfg, total, 1000);
-	if (got < 0) die("GET_DESCRIPTOR(config, total)", got);
-
-	// store rest
-	parse_cfg(cfg, (size_t)got);
-	free(cfg);
-
-	device_link_close(link);
-	device_ids_destroy(ids);
-	device_host_destroy(host);
+	//  if (n == 0) {
+	// 	printf("No devices found (vid=%04x pid=%04x)", vid, pid);
+	// 	device_host_destroy(host);
+	// 	return 2;
+	//  }
+	//
+	//  // enumerate devices
+	//  printf("Found %zu device(s). Opening first: bus=%u \t address=%u \t vid=%04x pid=%04x", n, ids[0].bus, ids[0].addr, ids[0].vid, ids[0].pid);
+	//
+	//  // initialize libusb session
+	//  device_link *link = NULL;
+	//  CHECK(device_link_open(host, &ids[0], &link));
+	//
+	//  // discard existing OS driver to claim control
+	//  if (default_claim) {
+	// 	const int rc = device_link_claim(link, 0, 1);
+	// 	if (rc < 0) fprintf(stderr, "default interface failed (continuing): %s\n", device_err_str(rc));
+	//  }
+	//
+	//  // configuration descriptor
+	//  uint8_t devd[18] = {0};
+	//  int got = device_link_ctrl(link, 0x80, 0x06, (1u << 8), 0, devd, sizeof(devd), 1000);
+	//  if (got < 0) die("GET_CONFIGURATION(device)", got);
+	//  if (got != 18) fprintf(stderr, "Warning: device descriptor length=%d\n", got);
+	//  dump_dev_desc(devd);
+	//
+	// // configuration descriptor lives in the first 9 bytes of the header with an offset of 2
+	// uint8_t cfg9[9] = {0};
+	// got = device_link_ctrl(link, 0x80, 0x06, (2u << 8), 0, cfg9, sizeof(cfg9), 1000);
+	// if (got < 0) die("GET_CONFIGURATION(config, 9)", got);
+	// if (got < 9) fprintf(stderr, "Warning: configuration header short=%d\n", got);
+	//
+	// uint16_t total = le16(&cfg9[2]);
+	// if (total < 9 || total > 4096) {
+	// 	fprintf(stderr, "Suspicious config total length=%u\n", total);
+	// 	total = 9;
+	// }
+	//
+	// // store header bytes
+	// uint8_t *cfg = (uint8_t *)calloc(1, total);
+	// if (!cfg) die("calloc(cfg)", DEVICE_ENOMEM);
+	//
+	// // read rest of descriptors
+	// got = device_link_ctrl(link, 0x80, 0x60, (2u << 8), 0, cfg, total, 1000);
+	// if (got < 0) die("GET_DESCRIPTOR(config, total)", got);
+	//
+	// // store rest
+	// parse_cfg(cfg, (size_t)got);
+	// free(cfg);
+	//
+	// device_link_close(link);
+	// device_ids_destroy(ids);
+	// device_host_destroy(host);
 }
