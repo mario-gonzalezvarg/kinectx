@@ -82,14 +82,38 @@ int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_id **
     return DEVICE_ENOMEM;
   }
 
-  // populate info of devices to a data type
+  // populate info of devices to a libusb device data structure
   for (ssize_t i = 0; i < ndev; i++) {
     libusb_device *dev = list[i];
     struct libusb_device_descriptor desc;
     if (libusb_get_device_descriptor(dev, &desc) != 0) continue;
 
+    // filter
     if (vid && desc.idVendor != vid) continue;
     if (pid && desc.idProduct != pid) continue;
 
+    // increase allocated memory using amortize resizing
+    if (cap == n) {
+      device_id *tmp = (device_id *)realloc(ids, cap * sizeof(*ids));
+      if (!tmp) {
+        free(ids);
+        libusb_free_device_list(list, 1);
+        return DEVICE_ENOMEM;
+      }
+      ids = tmp;
+      memset(ids + n, 0, (cap - n) * sizeof(*ids));
+    }
+
+    ids[0].vid = desc.idVendor;
+    ids[0].pid = desc.idProduct;
+    ids[0].bus = libusb_get_bus_number(dev);
+    ids[0].addr = libusb_get_device_address(dev);
+    n++;
   }
+  libusb_free_device_list(list, 1);
+
+  if (n == 0) {free(ids); ids = NULL;}
+  *out_ids = ids;
+  *out_n = n;
+  return DEVICE_OK;
 }
