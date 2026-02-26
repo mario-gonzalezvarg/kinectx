@@ -94,6 +94,7 @@ int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_id **
 
     // increase allocated memory using amortize resizing
     if (cap == n) {
+      cap *= 2;
       device_id *tmp = (device_id *)realloc(ids, cap * sizeof(*ids));
       if (!tmp) {
         free(ids);
@@ -117,3 +118,42 @@ int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_id **
   *out_n = n;
   return DEVICE_OK;
 }
+
+void device_ids_destroy(device_id *ids) {
+  free(ids);
+}
+
+static int open_by_id(device_host *host, const device_id *id, libusb_device_handle **out_usb) {
+  if (!host || !id || !out_usb) return DEVICE_EINVAL;
+
+  // obtain USB devices
+  libusb_device **list = NULL;
+  ssize_t ndev = libusb_get_device_list(host->usb, &list);
+  if (ndev < 0) return map_libusb((int) ndev);
+
+  int rc = DEVICE_ENODEV;
+
+  // obtain device descriptors for each USB connection
+  for (ssize_t i = 0; i < ndev; i++) {
+    libusb_device *dev = list[i];
+    struct libusb_device_descriptor desc;
+    if (libusb_get_device_descriptor(dev, &desc) != 0) continue;
+
+    // verify ids
+    if (desc.idVendor != id->vid) continue;
+    if (desc.idProduct != id->pid) continue;
+    if (libusb_get_bus_number(dev) != id->bus) continue;
+    if (libusb_get_device_address(dev) != id->addr) continue;
+
+    // open device to obtain handle
+    libusb_device_handle *usb = NULL;
+    int orc = libusb_open(dev, &usb);
+    if (orc < 0) {rc = map_libusb(orc); break;}
+
+    *out_usb = usb;
+    rc = DEVICE_OK;
+  }
+  libusb_free_device_list(list, 1);
+  return rc;
+}
+

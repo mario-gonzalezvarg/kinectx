@@ -46,7 +46,7 @@ int device_host_scan(device_host *host, uint16_t vid, uint16_t pid,
 void device_ids_destroy(device_id *ids);
 
 /* open/close link handle */
-int device_link_open(device_host *host, const device_id *id,
+int device_link_open(device_host *host, device_id *id,
                      device_link **out_link);
 void device_link_close(device_link *link);
 
