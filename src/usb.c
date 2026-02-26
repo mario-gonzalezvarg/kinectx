@@ -180,7 +180,7 @@ int device_link_open(device_host *host, device_id *id, device_link **out_link) {
 static void restore_interfaces(device_link *link) {
   if (!link->usb) return;
 
-  for (int iface = 0; iface < 32; iface++) {
+  for (int iface = 0; iface < 16; iface++) {
     const uint32_t bit = (1u << iface);
 
     if (link->claimed & bit) {
@@ -200,4 +200,26 @@ void device_link_close(device_link *link) {
   restore_interfaces(link);
   libusb_close(link->usb);
   free(link);
+}
+
+int device_link_claim(device_link *link, const int iface, const int detach_kernel) {
+  if (!link || !link->usb || iface < 0 || iface > 16) return DEVICE_EINVAL;
+
+  const uint32_t bit = (1u << iface);
+  if (link->claimed & bit) return DEVICE_OK;
+
+  if (detach_kernel) {
+    const int active = libusb_kernel_driver_active(link->usb, iface);
+    if (active == 1) {
+      const int rc = libusb_detach_kernel_driver(link->usb, iface);
+      if (rc < 0 && rc != LIBUSB_ERROR_NOT_SUPPORTED) return map_libusb(rc);
+      if (rc >= 0) link->detached |= bit;
+    }
+  }
+
+  const int rc = libusb_attach_kernel_driver(link->usb, iface);
+  if (rc < 0) return map_libusb(rc);
+
+  link->claimed |= bit;
+  return DEVICE_OK;
 }
