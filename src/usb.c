@@ -51,7 +51,7 @@ const char *device_err_str(const int code) {
 int device_host_create(device_host **out) {
   if (!out) return DEVICE_EINVAL;
 
-  device_host *host = (device_host *)calloc(1, sizeof(*host));
+  device_host *host = calloc(1, sizeof(*host));
   if (!host) return DEVICE_ENOMEM;
 
   const int rc = libusb_init_context(&host->usb, NULL, 0);
@@ -76,7 +76,7 @@ int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_id **
 
   // allocate memory for devices scanned
   size_t cap = 32, n = 0;
-  device_id *ids = (device_id *)calloc(cap, sizeof(*ids));
+  device_id *ids = calloc(cap, sizeof(*ids));
   if (!ids) {
     libusb_free_device_list(list, 1);
     return DEVICE_ENOMEM;
@@ -165,7 +165,7 @@ int device_link_open(device_host *host, device_id *id, device_link **out_link) {
   if (rc != DEVICE_OK) return rc;
 
   // allocate memory space for resource handler
-  device_link *link = (device_link *)calloc(1, sizeof(*link));
+  device_link *link = calloc(1, sizeof(*link));
   if (!link) {libusb_close(usb); return DEVICE_ENOMEM;}
 
   link->host = host;
@@ -176,4 +176,5 @@ int device_link_open(device_host *host, device_id *id, device_link **out_link) {
   *out_link = link;
   return DEVICE_OK;
 }
+
 
