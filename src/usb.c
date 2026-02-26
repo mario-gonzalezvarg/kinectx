@@ -123,8 +123,7 @@ void device_ids_destroy(device_id *ids) {
   free(ids);
 }
 
-static int open_by_id(device_host *host, const device_id *id, libusb_device_handle **out_usb) {
-  if (!host || !id || !out_usb) return DEVICE_EINVAL;
+static int open_by_id(const device_host *host, const device_id *id, libusb_device_handle **out_usb) {
 
   // obtain USB devices
   libusb_device **list = NULL;
@@ -155,5 +154,26 @@ static int open_by_id(device_host *host, const device_id *id, libusb_device_hand
   }
   libusb_free_device_list(list, 1);
   return rc;
+}
+
+int device_link_open(device_host *host, device_id *id, device_link **out_link) {
+  if (!host || !id || !out_link) return DEVICE_EINVAL;
+
+  // open device using id value
+  libusb_device_handle *usb = NULL;
+  const int rc = open_by_id(host, id, &usb);
+  if (rc != DEVICE_OK) return rc;
+
+  // allocate memory space for resource handler
+  device_link *link = (device_link *)calloc(1, sizeof(*link));
+  if (!link) {libusb_close(usb); return DEVICE_ENOMEM;}
+
+  link->host = host;
+  link->usb = usb;
+  link->claimed = 0;
+  link->detached = 0;
+
+  *out_link = link;
+  return DEVICE_OK;
 }
 
