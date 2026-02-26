@@ -1,0 +1,5 @@
+# JetBrains (CLion/IntelliJ)
+.idea/
+
+# CMake build output (out-of-source builds)
+cmake-build-*/
