@@ -243,3 +243,17 @@ int device_link_release(device_link *link, const int iface) {
 
   return DEVICE_OK;
 }
+
+int device_link_set_alt(device_link *link, const int iface, const int alt) {
+  if (!link || !link->usb) return DEVICE_EINVAL;
+  const int rc = libusb_set_interface_alt_setting(link->usb, iface, alt);
+  if (rc < 0) return map_libusb(rc);
+  return DEVICE_OK;
+}
+
+int device_link_ctrl(device_link *link, uint8_t bmReq, uint8_t bReq, uint16_t wVal, uint16_t wIdx, void *data, uint16_t len, unsigned timeout_ms) {
+  if (!link || !link->usb) return DEVICE_EINVAL;
+  const int rc = libusb_control_transfer(link->usb, bmReq, bReq, wVal, wIdx, (unsigned char *) data, len, timeout_ms);
+  return map_libusb(rc);
+}
+
