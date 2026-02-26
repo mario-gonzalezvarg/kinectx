@@ -75,7 +75,7 @@ int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_id **
   if (ndev < 0) return map_libusb((int) ndev);
 
   // allocate memory for devices scanned
-  size_t cap = 32, n = 0;
+  size_t cap = 16, n = 0;
   device_id *ids = calloc(cap, sizeof(*ids));
   if (!ids) {
     libusb_free_device_list(list, 1);
@@ -177,4 +177,27 @@ int device_link_open(device_host *host, device_id *id, device_link **out_link) {
   return DEVICE_OK;
 }
 
+static void restore_interfaces(device_link *link) {
+  if (!link->usb) return;
 
+  for (int iface = 0; iface < 32; iface++) {
+    const uint32_t bit = (1u << iface);
+
+    if (link->claimed & bit) {
+      libusb_release_interface(link->usb, iface);
+      link->claimed &= ~bit;
+    }
+
+    if (link->detached & bit) {
+      libusb_attach_kernel_driver(link->usb, iface);
+      link->detached &= ~bit;
+    }
+  }
+}
+
+void device_link_close(device_link *link) {
+  if (!link) return;
+  restore_interfaces(link);
+  libusb_close(link->usb);
+  free(link);
+}
