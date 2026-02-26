@@ -75,12 +75,9 @@ int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_id **
   if (ndev < 0) return map_libusb((int) ndev);
 
   // allocate memory for devices scanned
-  size_t cap = 16, n = 0;
+  size_t cap = 32, n = 0;
   device_id *ids = calloc(cap, sizeof(*ids));
-  if (!ids) {
-    libusb_free_device_list(list, 1);
-    return DEVICE_ENOMEM;
-  }
+  if (!ids) { libusb_free_device_list(list, 1); return DEVICE_ENOMEM; }
 
   // populate info of devices to a libusb device data structure
   for (ssize_t i = 0; i < ndev; i++) {
@@ -93,8 +90,10 @@ int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_id **
     if (pid && desc.idProduct != pid) continue;
 
     // increase allocated memory using amortize resizing
-    if (cap == n) {
+    if (n == cap) {
+      const size_t old = cap;
       cap *= 2;
+
       device_id *tmp = (device_id *)realloc(ids, cap * sizeof(*ids));
       if (!tmp) {
         free(ids);
@@ -102,18 +101,18 @@ int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_id **
         return DEVICE_ENOMEM;
       }
       ids = tmp;
-      memset(ids + n, 0, (cap - n) * sizeof(*ids));
+      memset(ids + old, 0, (cap - old) * sizeof(*ids));
     }
 
-    ids[0].vid = desc.idVendor;
-    ids[0].pid = desc.idProduct;
+    ids[n].vid = desc.idVendor;
+    ids[n].pid = desc.idProduct;
     ids[0].bus = libusb_get_bus_number(dev);
     ids[0].addr = libusb_get_device_address(dev);
     n++;
   }
   libusb_free_device_list(list, 1);
 
-  if (n == 0) {free(ids); ids = NULL;}
+  if (n == 0) { free(ids); ids = NULL; }
   *out_ids = ids;
   *out_n = n;
   return DEVICE_OK;
@@ -151,6 +150,7 @@ static int open_by_id(const device_host *host, const device_id *id, libusb_devic
 
     *out_usb = usb;
     rc = DEVICE_OK;
+    break;
   }
   libusb_free_device_list(list, 1);
   return rc;
@@ -180,7 +180,7 @@ int device_link_open(device_host *host, device_id *id, device_link **out_link) {
 static void restore_interfaces(device_link *link) {
   if (!link->usb) return;
 
-  for (int iface = 0; iface < 16; iface++) {
+  for (int iface = 0; iface < 32; iface++) {
     const uint32_t bit = (1u << iface);
 
     if (link->claimed & bit) {
@@ -203,7 +203,7 @@ void device_link_close(device_link *link) {
 }
 
 int device_link_claim(device_link *link, const int iface, const int detach_kernel) {
-  if (!link || !link->usb || iface < 0 || iface > 16) return DEVICE_EINVAL;
+  if (!link || !link->usb || iface < 0 || iface > 32) return DEVICE_EINVAL;
 
   const uint32_t bit = (1u << iface);
   if (link->claimed & bit) return DEVICE_OK;
@@ -217,9 +217,29 @@ int device_link_claim(device_link *link, const int iface, const int detach_kerne
     }
   }
 
-  const int rc = libusb_attach_kernel_driver(link->usb, iface);
+  const int rc = libusb_claim_interface(link->usb, iface);
   if (rc < 0) return map_libusb(rc);
 
   link->claimed |= bit;
+  return DEVICE_OK;
+}
+
+int device_link_release(device_link *link, const int iface) {
+  if (!link || !link->usb || iface < 0 || iface >= 32) return DEVICE_EINVAL;
+
+  const uint32_t bit = (1u << iface);
+
+  if (link->claimed & bit) {
+    const int rc = libusb_release_interface(link->usb, iface);
+    if (rc < 0) return map_libusb(rc);
+    link->claimed &= ~bit;
+  }
+
+  if (link->detached & bit) {
+    const int rc = libusb_attach_kernel_driver(link->usb, iface);
+    if (rc < 0 && rc != LIBUSB_ERROR_NOT_SUPPORTED) return map_libusb(rc);
+    link->detached &= ~bit;
+  }
+
   return DEVICE_OK;
 }
