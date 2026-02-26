@@ -63,8 +63,7 @@ int device_link_ctrl(device_link *link,
                      unsigned timeout_ms);
 
 
-int device_link_bulk(device_link *link, uint8_t ep, void *data,
-                     unsigned timeout_ms);
+int device_link_bulk(device_link *link, uint8_t ep, void *data, int len, unsigned timeout_ms);
 
 /* event pump */
 int device_host_poll(device_host *host, int timeout_ms);

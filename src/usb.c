@@ -106,8 +106,8 @@ int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_id **
 
     ids[n].vid = desc.idVendor;
     ids[n].pid = desc.idProduct;
-    ids[0].bus = libusb_get_bus_number(dev);
-    ids[0].addr = libusb_get_device_address(dev);
+    ids[n].bus = libusb_get_bus_number(dev);
+    ids[n].addr = libusb_get_device_address(dev);
     n++;
   }
   libusb_free_device_list(list, 1);
@@ -253,7 +253,32 @@ int device_link_set_alt(device_link *link, const int iface, const int alt) {
 
 int device_link_ctrl(device_link *link, uint8_t bmReq, uint8_t bReq, uint16_t wVal, uint16_t wIdx, void *data, uint16_t len, unsigned timeout_ms) {
   if (!link || !link->usb) return DEVICE_EINVAL;
+
+  // perform a USB control transfer
   const int rc = libusb_control_transfer(link->usb, bmReq, bReq, wVal, wIdx, (unsigned char *) data, len, timeout_ms);
   return map_libusb(rc);
 }
 
+int device_link_bulk(device_link *link, uint8_t ep, void *data, const int len, const unsigned timeout_ms) {
+  if (!link || !link->usb || !data || len < 0) return DEVICE_EINVAL;
+  int done = 0;
+  const int rc = libusb_bulk_transfer(link->usb, ep, (unsigned char *) data, len, &done, timeout_ms);
+  if (rc < 0) return map_libusb(rc);
+  return done;
+}
+
+int device_host_poll(device_host *host, const int timeout_ms) {
+  if (!host || !host->usb) return DEVICE_EINVAL;
+
+  if (timeout_ms < 0) {
+    const int rc = libusb_handle_events(host->usb);
+    return map_libusb(rc);
+  }
+
+  struct timeval tv;
+  tv.tv_sec = timeout_ms / 1000;
+  tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+  const int rc = libusb_handle_events_timeout(host->usb, &tv);
+  return map_libusb(rc);
+}
