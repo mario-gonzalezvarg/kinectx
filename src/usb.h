@@ -3,6 +3,7 @@
 
 #ifndef USB_H
 #define USB_H
+#define DEVICE_STR_MAX 64
 
 #include <stddef.h>
 #include <stdint.h>
@@ -19,6 +20,7 @@ typedef struct device_link device_link;
 typedef struct {
   uint16_t vid, pid;
   uint8_t bus, addr;
+  char mfg[DEVICE_STR_MAX];
 } device_id;
 
 /* decoding layer for operation success/failure */

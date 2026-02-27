@@ -48,6 +48,27 @@ const char *device_err_str(const int code) {
   }
 }
 
+static void read_ascii_str(libusb_device_handle *usb, const uint8_t idx, char *out, const size_t out_sz) {
+  if (!out || out_sz == 0) return;
+  out[0] = '\0';
+  if (!usb || idx == 0) return;
+
+  int rc = libusb_get_string_descriptor_ascii(usb, idx, (unsigned char*) out, (int)out_sz);
+  if (rc < 0) {out[0] = '\0'; return; }
+  if ((ssize_t)rc >= out_sz) out[out_sz - 1] = '\0';
+  else out[rc] = '\0';
+}
+
+static void fill_mfg(libusb_device_handle *usb, device_id *id) {
+  if (!usb || !id) return;
+
+  struct libusb_device_descriptor desc;
+  int rc = libusb_get_device_descriptor(libusb_get_device(usb), &desc);
+  if (rc < 0) return;
+
+  read_ascii_str(usb, desc.iManufacturer, id->mfg, sizeof(id->mfg));
+}
+
 int device_host_create(device_host **out) {
   if (!out) return DEVICE_EINVAL;
 
@@ -94,7 +115,7 @@ int device_host_scan(device_host *host, uint16_t vid, uint16_t pid, device_id **
       const size_t old = cap;
       cap *= 2;
 
-      device_id *tmp = (device_id *)realloc(ids, cap * sizeof(*ids));
+      device_id *tmp = realloc(ids, cap * sizeof(*ids));
       if (!tmp) {
         free(ids);
         libusb_free_device_list(list, 1);
@@ -122,7 +143,7 @@ void device_ids_destroy(device_id *ids) {
   free(ids);
 }
 
-static int open_by_id(const device_host *host, const device_id *id, libusb_device_handle **out_usb) {
+static int open_by_id(const device_host *host, device_id *id, libusb_device_handle **out_usb) {
 
   // obtain USB devices
   libusb_device **list = NULL;
@@ -148,6 +169,7 @@ static int open_by_id(const device_host *host, const device_id *id, libusb_devic
     int orc = libusb_open(dev, &usb);
     if (orc < 0) {rc = map_libusb(orc); break;}
 
+    fill_mfg(usb, id);
     *out_usb = usb;
     rc = DEVICE_OK;
     break;

@@ -27,7 +27,7 @@ static uint16_t le16(const uint8_t *p) {
 // list out 18-byte USB device descriptors
 static void dump_dev_desc(const uint8_t d[18]) {
   printf("Device Descriptor:\n");
-  printf("  bcdUSB       : %x.%02x\n", d[3], d[2]);
+  printf("  bcdUSB       : %x.%02x\n", d[2], d[3]);
   printf("  class/sub/pro: %u/%u/%u\n", d[4], d[5], d[6]);
   printf("  maxpkt0      : %u\n", d[7]);
   printf("  idVendor     : 0x%04x\n", le16(&d[8]));
@@ -80,15 +80,8 @@ static void parse_cfg(const uint8_t *cfg, const size_t n) {
 }
 
 int main(int argc, char **argv) {
-	uint8_t vid = 0, pid = 0;
+	const uint16_t vid = 0x045e, pid = 0x02b0;
 	int default_claim = 0;
-
-
-	 if (argc >= 3){
-		 vid = (uint16_t)strtoul(argv[1], NULL, 16);
-		 pid = (uint16_t)strtoul(argv[2], NULL, 16);
-	 }
-	 if (argc >= 4 && strcmp(argv[3], "--claim0") == 0) default_claim = 1;
 
 	 // create device
 	 device_host *host = NULL;
@@ -107,17 +100,12 @@ int main(int argc, char **argv) {
 	 }
 
 	 // enumerate devices
-	 printf("Found %zu device(s). Opening first: bus=%u \t address=%u \t vid=%04x pid=%04x", n, ids[0].bus, ids[0].addr, ids[0].vid, ids[0].pid);
+	 printf("Found %zu device(s). Opening...\n"
+		 "Bus %03u Device=%03u: ID %04x:%04x\n", n, ids[0].bus, ids[0].addr, ids[0].vid, ids[0].pid);
 
 	 // initialize libusb session
 	 device_link *link = NULL;
 	 CHECK(device_link_open(host, &ids[0], &link));
-
-	 // discard existing OS driver to claim control
-	 if (default_claim) {
-		const int rc = device_link_claim(link, 0, 1);
-		if (rc < 0) fprintf(stderr, "default interface failed (continuing): %s\n", device_err_str(rc));
-	 }
 
 	 // configuration descriptor
 	 uint8_t devd[18] = {0};
