@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <assert.h>
 
 #include <libusb-1.0/libusb.h>
 
@@ -48,8 +49,8 @@ const char *device_err_str(const int code) {
   }
 }
 
-static void read_ascii_str(libusb_device_handle *usb, const uint8_t idx, char *out, const size_t out_sz) {
-  if (!out || out_sz == 0) return;
+static void read_ascii_str(libusb_device_handle *usb, const uint8_t idx, char *out, size_t out_sz) {
+  assert(out && out_sz > 0);
   out[0] = '\0';
   if (!usb || idx == 0) return;
 
