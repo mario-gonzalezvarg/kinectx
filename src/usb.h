@@ -21,6 +21,7 @@ typedef struct {
   uint16_t vid, pid;
   uint8_t bus, addr;
   char mfg[DEVICE_STR_MAX];
+  char prd[DEVICE_STR_MAX];
 } device_id;
 
 /* decoding layer for operation success/failure */

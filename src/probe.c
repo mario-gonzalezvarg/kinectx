@@ -24,29 +24,59 @@ static uint16_t le16(const uint8_t *p) {
 	return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
 }
 
-static int get_langid(device_link *link, uint16_t *out_langid) {
-	uint8_t buf[256] = {0};
 
-	int got = device_link_ctrl(link, 0x80, 0x06, (uint16_t)((3u << 8) | 0u), 0, buf, (uint16_t)sizeof(buf), 1000);
+static void utf16le_to_ascii(const uint8_t *in, size_t in_bytes,
+							 char *out, size_t out_sz) {
+	out[0] = '\0';
+	if (!in || in_bytes < 2) return;
+
+	size_t j = 0;
+	for (size_t i = 0; i + 1 < in_bytes && j + 1 < out_sz; i += 2) {
+		uint16_t ch = (uint16_t)in[i] | ((uint16_t)in[i + 1] << 8);
+		if (ch == 0) break;
+		out[j++] = (ch < 0x80) ? (char)ch : '?'; // simple ASCII fallback
+	}
+	out[j] = '\0';
+}
+
+static int get_string_ascii(device_link *link, uint16_t langid, uint8_t idx,
+							char *out, size_t out_sz) {
+	out[0] = '\0';
+	if (idx == 0) return DEVICE_OK; // no string available
+
+	uint8_t buf[128] = {0};
+	const int got = device_link_ctrl(
+		link,
+		0x80,                 // IN | STANDARD | DEVICE
+		0x06,                 // GET_DESCRIPTOR
+		(uint16_t)((3u << 8) | idx), // STRING desc (type=3), index=idx
+		langid,               // wIndex = language ID
+		buf, (uint16_t)sizeof(buf),
+		1000);
+
 	if (got < 0) return got;
-	if (got < 4 || buf[1] != 3) return DEVICE_EIO;
+	if (got < 2 || buf[1] != 3) return DEVICE_EIO;
 
-	*out_langid = le16(&buf[2]);
+	// buf[0] is bLength; payload is UTF-16LE starting at buf+2
+	const size_t payload = (size_t)got;
+	if (payload < 2) return DEVICE_EIO;
+
+	utf16le_to_ascii(buf + 2, payload - 2, out, out_sz);
 	return DEVICE_OK;
 }
 
-
-
-// list out 18-byte USB device descriptors
-static void dump_dev_desc(const uint8_t d[18]) {
-  printf("Device Descriptor:\n");
-  printf("  bcdUSB       : %x.%02x\n", d[2], d[3]);
-  printf("  class/sub/pro: %u/%u/%u\n", d[4], d[5], d[6]);
-  printf("  maxpkt0      : %u\n", d[7]);
-  printf("  idVendor     : 0x%04x\n", le16(&d[8]));
-  printf("  idProduct    : 0x%04x\n", le16(&d[10]));
-  printf("  bcdDevice    : 0x%04x\n", le16(&d[12]));
-  printf("  num configs  : %u\n", d[17]);
+// change signature to accept manufacturer string
+static void dump_dev_desc(const uint8_t d[18], const char *mfg, const char *prod) {
+	printf("Device Descriptor:\n");
+	printf("  bcdUSB       : %x.%02x\n", d[3], d[2]);
+	printf("  class/sub/pro: %u/%u/%u\n", d[4], d[5], d[6]);
+	printf("  Max Packet   : %u\n", d[7]);
+	printf("  idVendor     : 0x%04x\n", le16(&d[8]));
+	printf("  idProduct    : 0x%04x\n", le16(&d[10]));
+	printf("  bcdDevice    : 0x%04x\n", le16(&d[12]));
+	printf("  Manufacturer : %s\n", mfg);
+	printf("  Product      : %s\n", prod);
+	printf("  num configs  : %u\n", d[17]);
 }
 
 static void parse_cfg(const uint8_t *cfg, const size_t n) {
@@ -94,7 +124,6 @@ static void parse_cfg(const uint8_t *cfg, const size_t n) {
 
 int main(int argc, char **argv) {
 	const uint16_t vid = 0x045e, pid = 0x02b0;
-	int default_claim = 0;
 
 	 // create device
 	 device_host *host = NULL;
@@ -125,31 +154,14 @@ int main(int argc, char **argv) {
 	 int got = device_link_ctrl(link, 0x80, 0x06, (1u << 8), 0, devd, sizeof(devd), 1000);
 	 if (got < 0) die("GET_CONFIGURATION(device)", got);
 	 if (got != 18) fprintf(stderr, "Warning: device descriptor length=%d\n", got);
-	 dump_dev_desc(devd);
 
-	// configuration descriptor lives in the first 9 bytes of the header with an offset of 2
-	uint8_t cfg9[9] = {0};
-	got = device_link_ctrl(link, 0x80, 0x06, (2u << 8), 0, cfg9, sizeof(cfg9), 1000);
-	if (got < 0) die("GET_CONFIGURATION(config, 9)", got);
-	if (got < 9) fprintf(stderr, "Warning: configuration header short=%d\n", got);
+	char mfg[128] = {0};
+	char prd[128] = {0};
 
-	uint16_t total = le16(&cfg9[2]);
-	if (total < 9 || total > 4096) {
-		fprintf(stderr, "Suspicious config total length=%u\n", total);
-		total = 9;
-	}
+	(void)get_string_ascii(link, 0x0409, devd[14], mfg, sizeof mfg);
+	get_string_ascii(link, 0x0409, devd[15], prd, sizeof prd);
 
-	// store header bytes
-	uint8_t *cfg = calloc(1, total);
-	if (!cfg) die("calloc(cfg)", DEVICE_ENOMEM);
-
-	// read rest of descriptors
-	got = device_link_ctrl(link, 0x80, 0x60, (2u << 8), 0, cfg, total, 1000);
-	if (got < 0) die("GET_DESCRIPTOR(config, total)", got);
-
-	// store rest
-	parse_cfg(cfg, (size_t)got);
-	free(cfg);
+	dump_dev_desc(devd, mfg, prd);
 
 	device_link_close(link);
 	device_ids_destroy(ids);
