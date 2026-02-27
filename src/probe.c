@@ -24,6 +24,19 @@ static uint16_t le16(const uint8_t *p) {
 	return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
 }
 
+static int get_langid(device_link *link, uint16_t *out_langid) {
+	uint8_t buf[256] = {0};
+
+	int got = device_link_ctrl(link, 0x80, 0x06, (uint16_t)((3u << 8) | 0u), 0, buf, (uint16_t)sizeof(buf), 1000);
+	if (got < 0) return got;
+	if (got < 4 || buf[1] != 3) return DEVICE_EIO;
+
+	*out_langid = le16(&buf[2]);
+	return DEVICE_OK;
+}
+
+
+
 // list out 18-byte USB device descriptors
 static void dump_dev_desc(const uint8_t d[18]) {
   printf("Device Descriptor:\n");
